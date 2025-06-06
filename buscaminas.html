@@ -280,6 +280,22 @@
       }
     }
 
-    function getColor
+    function getColor(number) {
+      const colors = {
+        1: 'blue',
+        2: 'green',
+        3: 'red',
+        4: 'darkblue',
+        5: 'brown',
+        6: 'cyan',
+        7: 'black',
+        8: 'gray'
+      };
+      return colors[number] || 'black';
+    }
 
-    
+    // Inicializar juego al cargar la página
+    window.onload = init;
+  </script>
+</body>
+</html>
