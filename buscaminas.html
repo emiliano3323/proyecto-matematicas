@@ -1,1 +1,144 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Buscaminas</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    #game {
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 4px;
+      max-width: 320px;
+      width: 100%;
+      user-select: none;
+    }
+    .cell {
+      width: 35px;
+      height: 35px;
+      background: #bbb;
+      border-radius: 5px;
+      text-align: center;
+      line-height: 35px;
+      font-weight: bold;
+      font-size: 1.1rem;
+      cursor: pointer;
+      user-select: none;
+    }
+    .cell.revealed {
+      background: #e0e0e0;
+      cursor: default;
+    }
+    .cell.mine {
+      background: red;
+      color: white;
+    }
+    .cell.flagged {
+      background: #ffeb3b;
+      color: black;
+    }
+    .btn-reset {
+      margin-top: 15px;
+      padding: 10px 20px;
+      background: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .btn-reset:hover {
+      background-color: #1769aa;
+    }
+    @media (max-width: 400px) {
+      #game {
+        grid-template-columns: repeat(6, 1fr);
+        max-width: 240px;
+      }
+      .cell {
+        width: 30px;
+        height: 30px;
+        line-height: 30px;
+        font-size: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Buscaminas</h1>
+  <div id="game"></div>
+  <button class="btn-reset" onclick="init()">Reiniciar</button>
+
+  <script>
+    const rows = 8;
+    const cols = 8;
+    const minesCount = 10;
+
+    let grid = [];
+    let minePositions = new Set();
+    let gameOver = false;
+    let flagsLeft = minesCount;
+
+    const gameDiv = document.getElementById('game');
+
+    function init() {
+      gameOver = false;
+      flagsLeft = minesCount;
+      minePositions.clear;
+      minePositions = new Set();
+      grid = [];
+      gameDiv.innerHTML = '';
+
+      // Crear grid y celdas
+      for (let r = 0; r < rows; r++) {
+        grid[r] = [];
+        for (let c = 0; c < cols; c++) {
+          const cell = document.createElement('div');
+          cell.classList.add('cell');
+          cell.dataset.row = r;
+          cell.dataset.col = c;
+          cell.dataset.flagged = 'false';
+          cell.addEventListener('click', onCellClick);
+          cell.addEventListener('contextmenu', onCellRightClick);
+          grid[r][c] = cell;
+          gameDiv.appendChild(cell);
+        }
+      }
+      placeMines();
+      calculateNumbers();
+    }
+
+    function placeMines() {
+      while (minePositions.size < minesCount) {
+        const pos = Math.floor(Math.random() * rows * cols);
+        minePositions.add(pos);
+      }
+    }
+
+    function calculateNumbers() {
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const cell = grid[r][c];
+          if (minePositions.has(r * cols + c)) {
+            cell.dataset.mine = 'true';
+          } else {
+            cell.dataset.mine = 'false';
+            let minesAround = 0;
+            for (let dr = -1; dr <= 1; dr++) {
+              for (let dc = -1; dc <= 1; dc++) {
+                if (dr === 0 && dc === 0) continue;
+                const nr = r +
 
