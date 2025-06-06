@@ -16,6 +16,7 @@
     }
     h1 {
       margin-bottom: 10px;
+      user-select: none;
     }
     #game {
       display: grid;
@@ -36,10 +37,12 @@
       font-size: 1.1rem;
       cursor: pointer;
       user-select: none;
+      position: relative;
     }
     .cell.revealed {
       background: #e0e0e0;
       cursor: default;
+      color: black;
     }
     .cell.mine {
       background: red;
@@ -59,6 +62,7 @@
       font-size: 1rem;
       cursor: pointer;
       transition: background-color 0.3s;
+      user-select: none;
     }
     .btn-reset:hover {
       background-color: #1769aa;
@@ -97,8 +101,7 @@
     function init() {
       gameOver = false;
       flagsLeft = minesCount;
-      minePositions.clear;
-      minePositions = new Set();
+      minePositions.clear();
       grid = [];
       gameDiv.innerHTML = '';
 
@@ -111,8 +114,13 @@
           cell.dataset.row = r;
           cell.dataset.col = c;
           cell.dataset.flagged = 'false';
+          cell.dataset.mine = 'false';
+          cell.dataset.revealed = 'false';
           cell.addEventListener('click', onCellClick);
           cell.addEventListener('contextmenu', onCellRightClick);
+          // Soporte toque largo para móvil para poner bandera
+          cell.addEventListener('touchstart', handleTouchStart);
+          cell.addEventListener('touchend', handleTouchEnd);
           grid[r][c] = cell;
           gameDiv.appendChild(cell);
         }
@@ -121,24 +129,157 @@
       calculateNumbers();
     }
 
+    // Variables para toque largo
+    let touchTimer = null;
+    function handleTouchStart(e) {
+      if (gameOver) return;
+      const cell = e.currentTarget;
+      touchTimer = setTimeout(() => {
+        toggleFlag(cell);
+      }, 600);
+    }
+    function handleTouchEnd(e) {
+      if (touchTimer) {
+        clearTimeout(touchTimer);
+        touchTimer = null;
+      }
+    }
+
     function placeMines() {
       while (minePositions.size < minesCount) {
         const pos = Math.floor(Math.random() * rows * cols);
         minePositions.add(pos);
       }
+      // Marcar minas en celdas
+      minePositions.forEach(pos => {
+        const r = Math.floor(pos / cols);
+        const c = pos % cols;
+        grid[r][c].dataset.mine = 'true';
+      });
     }
 
     function calculateNumbers() {
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
-          const cell = grid[r][c];
-          if (minePositions.has(r * cols + c)) {
-            cell.dataset.mine = 'true';
-          } else {
-            cell.dataset.mine = 'false';
-            let minesAround = 0;
-            for (let dr = -1; dr <= 1; dr++) {
-              for (let dc = -1; dc <= 1; dc++) {
-                if (dr === 0 && dc === 0) continue;
-                const nr = r +
+          if (grid[r][c].dataset.mine === 'true') continue;
+          let minesAround = 0;
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              if (dr === 0 && dc === 0) continue;
+              const nr = r + dr;
+              const nc = c + dc;
+              if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+                if (grid[nr][nc].dataset.mine === 'true') minesAround++;
+              }
+            }
+          }
+          grid[r][c].dataset.minesAround = minesAround;
+        }
+      }
+    }
 
+    function onCellClick(e) {
+      if (gameOver) return;
+      const cell = e.currentTarget;
+      if (cell.dataset.flagged === 'true' || cell.dataset.revealed === 'true') return;
+      revealCell(cell);
+    }
+
+    function onCellRightClick(e) {
+      e.preventDefault();
+      if (gameOver) return;
+      const cell = e.currentTarget;
+      toggleFlag(cell);
+    }
+
+    function toggleFlag(cell) {
+      if (cell.dataset.revealed === 'true') return;
+      if (cell.dataset.flagged === 'true') {
+        cell.dataset.flagged = 'false';
+        cell.classList.remove('flagged');
+        flagsLeft++;
+      } else {
+        if (flagsLeft === 0) return; // No más banderas
+        cell.dataset.flagged = 'true';
+        cell.classList.add('flagged');
+        flagsLeft--;
+      }
+      checkWin();
+    }
+
+    function revealCell(cell) {
+      if (cell.dataset.revealed === 'true' || cell.dataset.flagged === 'true') return;
+      cell.dataset.revealed = 'true';
+      cell.classList.add('revealed');
+
+      if (cell.dataset.mine === 'true') {
+        cell.classList.add('mine');
+        gameOver = true;
+        alert('¡Perdiste! Has pisado una mina.');
+        revealAllMines();
+        return;
+      }
+
+      const count = parseInt(cell.dataset.minesAround, 10);
+      if (count > 0) {
+        cell.textContent = count;
+        cell.style.color = getColor(count);
+      } else {
+        // Si no tiene minas alrededor, abre vecinos
+        cell.textContent = '';
+        openAdjacentCells(cell);
+      }
+
+      checkWin();
+    }
+
+    function openAdjacentCells(cell) {
+      const r = parseInt(cell.dataset.row, 10);
+      const c = parseInt(cell.dataset.col, 10);
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          if (dr === 0 && dc === 0) continue;
+          const nr = r + dr;
+          const nc = c + dc;
+          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+            const neighbor = grid[nr][nc];
+            if (neighbor.dataset.revealed === 'false' && neighbor.dataset.flagged === 'false') {
+              revealCell(neighbor);
+            }
+          }
+        }
+      }
+    }
+
+    function revealAllMines() {
+      minePositions.forEach(pos => {
+        const r = Math.floor(pos / cols);
+        const c = pos % cols;
+        const cell = grid[r][c];
+        if (cell.dataset.revealed === 'false') {
+          cell.classList.add('mine');
+          cell.dataset.revealed = 'true';
+        }
+      });
+    }
+
+    function checkWin() {
+      if (gameOver) return;
+      let revealedCount = 0;
+      for (let r = 0; r < rows; r++) {
+        for (let c = 0; c < cols; c++) {
+          const cell = grid[r][c];
+          if (cell.dataset.revealed === 'true') revealedCount++;
+        }
+      }
+      // Ganar si se han revelado todas las celdas que no son minas
+      if (revealedCount === rows * cols - minesCount) {
+        gameOver = true;
+        alert('¡Felicidades! ¡Ganaste!');
+        revealAllMines();
+      }
+    }
+
+    function getColor
+
+    
